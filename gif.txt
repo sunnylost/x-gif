@@ -1,0 +1,59 @@
+GIF Spec: http://www.w3.org/Graphics/GIF/spec-gif89a.txt
+
+The Grammar.
+
+<GIF Data Stream> ::=     Header <Logical Screen> <Data>* Trailer
+
+<Logical Screen> ::=      Logical Screen Descriptor [Global Color Table]
+
+<Data> ::=                <Graphic Block>  |
+                          <Special-Purpose Block>
+
+<Graphic Block> ::=       [Graphic Control Extension] <Graphic-Rendering Block>
+
+<Graphic-Rendering Block> ::=  <Table-Based Image>  |
+                               Plain Text Extension
+
+<Table-Based Image> ::=   Image Descriptor [Local Color Table] Image Data
+
+<Special-Purpose Block> ::=    Application Extension  |
+                               Comment Extension
+
+Data Stream parts:
+    Header
+    Logical Screen Descriptor
+    Global Color Table
+    GIF Trailer
+
+Data Sub-blocks:
+    first byte: number of data bytes to follow
+
+    Block size: 0-255
+    Data value: 8-bit
+
+Block Terminator:
+    0x00
+
+Header:
+    Signature: 3 Bytes  "GIF"
+    Version: 3 Bytes  "87a" "89a"
+
+Logical Screen Descriptor
+      7 6 5 4 3 2 1 0              Field Name                    Type
+         +---------------+
+      0  |               |       Logical Screen Width          Unsigned
+         +-             -+
+      1  |               |
+         +---------------+
+      2  |               |       Logical Screen Height         Unsigned
+         +-             -+
+      3  |               |
+         +---------------+
+      4  | |     | |     |       <Packed Fields>               See below
+         +---------------+
+      5  |               |       Background Color Index        Byte
+         +---------------+
+      6  |               |       Pixel Aspect Ratio            Byte
+         +---------------+
+Trailer
+    0x3B

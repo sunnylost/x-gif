@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Test x-gif</title>
+    <link rel="import" href="bower_components/polymer/polymer.html">
+</head>
+<body>
+    <img id="gif" src="assets/1.gif">
+    <canvas id="test"></canvas>
+<script>
+    var decoder;
+
+    var xhr = new XMLHttpRequest;
+    xhr.open('GET', gif.src);
+    xhr.setRequestHeader('content-type', 'text/plain');
+    xhr.send();
+
+    xhr.onreadystatechange = function() {
+        if(xhr.readyState == 4 && (xhr.status >= 200 && xhr.status < 400 || xhr.status == 304)) {
+            decoder = new GIFDecoder(xhr.responseText);
+            decoder.parse();
+        }
+    };
+
+    /**
+     * https://github.com/shachaf/jsgif/blob/master/gif.js
+     */
+    function GIFDecoder(str) {
+        this.str    = str;
+        this.length = str.length;
+        this.index  = 0;
+    }
+
+    GIFDecoder.prototype = {
+        constructor: GIFDecoder,
+
+        blockTerminator: 0x00,
+
+        readByte: function() {
+            var nextIndex = this.index + 1;
+
+            if(nextIndex > this.length) {
+                throw Error('No more data to read.')
+            } else {
+                return this.str.substring(this.index++, nextIndex).charCodeAt(0) & 0xff;
+            }
+        },
+
+        readBytes: function(len) {
+            var bytes = [];
+            while(len--) {
+                bytes.push(this.readByte());
+            }
+            return bytes;
+        },
+
+        readUnsigned: function() {
+            var a = this.readBytes(2);
+            return (a[1] << 8) + a[0];
+        },
+
+        readBinary: function() {
+            var a = [];
+            a.forEach.call(new String(this.readByte().toString(2)), function(v) {
+                a.push(+v);
+            });
+            return a;
+        },
+
+        read: function(len) {
+            var index     = this.index,
+                nextIndex = index + len;
+            if(nextIndex > this.length) {
+                throw Error('No more data to read.')
+            } else {
+                this.index = nextIndex;
+                return this.str.substring(index, nextIndex);
+            }
+        },
+
+        parse: function() {
+            this.parseHeader();
+            this.parseLogicalScreenDescriptor();
+        },
+
+        parseHeader: function() {
+            var head = this.read(6),
+                signature = head.substring(0, 3),
+                version   = head.substring(3);
+
+            console.log("Signature = ", signature);
+            console.log('Version   = ', version);
+        },
+
+        parseLogicalScreenDescriptor: function() {
+            console.log('width  = ', this.readUnsigned(), 'px');
+            console.log('height = ', this.readUnsigned(), 'px');
+
+            /**
+             * <Packed Fields>  =      Global Color Table Flag       1 Bit
+             *                         Color Resolution              3 Bits
+             *                         Sort Flag                     1 Bit
+             *                         Size of Global Color Table    3 Bits
+             */
+            var packedFields = this.readBinary();
+            console.log(packedFields);
+            console.log('Background Color Index = ', this.readByte());
+            console.log('Pixel Aspect Ratio     = ', this.readByte());
+        }
+    };
+</script>
+</body>
+</html>
