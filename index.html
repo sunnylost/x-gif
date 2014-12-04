@@ -3,32 +3,36 @@
 <head lang="en">
     <meta charset="UTF-8">
     <title>Test x-gif</title>
-    <link rel="import" href="bower_components/polymer/polymer.html">
 </head>
 <body>
-    <img id="gif" src="assets/1.gif">
+    <img id="gif" src="assets/2.gif">
     <canvas id="test"></canvas>
 <script>
     var decoder;
 
     var xhr = new XMLHttpRequest;
     xhr.open('GET', gif.src);
-    xhr.setRequestHeader('content-type', 'text/plain');
+    xhr.responseType = 'arraybuffer';
     xhr.send();
 
     xhr.onreadystatechange = function() {
-        if(xhr.readyState == 4 && (xhr.status >= 200 && xhr.status < 400 || xhr.status == 304)) {
-            decoder = new GIFDecoder(xhr.responseText);
+        if(this.readyState == 4 && (this.status >= 200 && this.status < 400 || this.status == 304)) {
+            decoder = new GIFDecoder(new Uint8Array(this.response));
             decoder.parse();
         }
     };
 
+    var LABEL_APPLICATION     = 0xff,
+        LABEL_COMMENT         = 0xfe,
+        LABEL_GRAPHIC_CONTROL = 0xf9,
+        LABEL_PLAIN_TEXT      = 0x01;
+
     /**
      * https://github.com/shachaf/jsgif/blob/master/gif.js
      */
-    function GIFDecoder(str) {
-        this.str    = str;
-        this.length = str.length;
+    function GIFDecoder(data) {
+        this.data   = data;
+        this.length = data.length;
         this.index  = 0;
     }
 
@@ -38,13 +42,7 @@
         blockTerminator: 0x00,
 
         readByte: function() {
-            var nextIndex = this.index + 1;
-
-            if(nextIndex > this.length) {
-                throw Error('No more data to read.')
-            } else {
-                return this.str.substring(this.index++, nextIndex).charCodeAt(0) & 0xff;
-            }
+            return this.data[this.index++];
         },
 
         readBytes: function(len) {
@@ -68,29 +66,27 @@
             return a;
         },
 
-        read: function(len) {
-            var index     = this.index,
-                nextIndex = index + len;
-            if(nextIndex > this.length) {
-                throw Error('No more data to read.')
-            } else {
-                this.index = nextIndex;
-                return this.str.substring(index, nextIndex);
-            }
+        readChar: function() {
+            return String.fromCharCode(this.readByte());
+        },
+
+        readString: function(len) {
+            return String.fromCharCode.apply(null, this.readBytes(len));
         },
 
         parse: function() {
             this.parseHeader();
-            this.parseLogicalScreenDescriptor();
         },
 
         parseHeader: function() {
-            var head = this.read(6),
+            var head = this.readString(6),
                 signature = head.substring(0, 3),
                 version   = head.substring(3);
 
             console.log("Signature = ", signature);
             console.log('Version   = ', version);
+
+            this.parseLogicalScreenDescriptor();
         },
 
         parseLogicalScreenDescriptor: function() {
@@ -103,12 +99,126 @@
              *                         Sort Flag                     1 Bit
              *                         Size of Global Color Table    3 Bits
              */
-            var packedFields = this.readBinary();
-            console.log(packedFields);
+            var packedFields = this.readBinary(),
+                hasGlobalColorTable    = false,
+                sizeOfGlobalColorTable = 0;
+
+            console.log('Global Color Table Flag = ', hasGlobalColorTable = packedFields.shift());
+            console.log('Color Resolution        = ', packedFields.splice(0, 3));
+            console.log('Sort Flag               = ', packedFields.shift());
+            console.log('Size of Global Color Table = ', sizeOfGlobalColorTable = packedFields);
+
             console.log('Background Color Index = ', this.readByte());
             console.log('Pixel Aspect Ratio     = ', this.readByte());
+
+            if(hasGlobalColorTable) {
+                this.parseGlobalColorTable(parseInt(sizeOfGlobalColorTable.join(''), 2));
+            }
+
+            this.parseBlock();
+        },
+
+        parseGlobalColorTable: function(size) {
+            var raw,
+                len,
+                colors = [],
+                i = 0;
+
+            size = 3 * (1 << (size + 1));
+            console.log('Global Color Table\'s size = ', size);
+            console.log(raw = this.readString(size));
+
+            for(len = raw.length; i < len - 2; i += 3) {
+                colors.push(toHex(raw[i]) + toHex(raw[i + 1]) + toHex(raw[i + 2]));
+            }
+
+            console.log(colors);
+        },
+
+        parseBlock: function() {
+            var separator = this.readChar(1);
+
+            switch(separator) {
+                //, -> 0x2c Image Separator
+                case ',':
+                    console.log('Image Separator');
+                    this.parseImageBlock();
+                    break;
+
+                //! -> 0x21 Extension Introducer
+                case '!':
+                    this.parseExtension();
+                    break;
+
+                //; -> 0x3b Trailer
+                case ';':
+                    this.parseDone();
+                    break;
+
+                default:
+                    throw Error('Cannot recognize char ', separator);
+            }
+        },
+
+        //TODO
+        parseExtension: function() {
+            var label = this.readByte();
+            console.log('label = ', label);
+
+            if(label == LABEL_APPLICATION) {
+                console.log('Extension Type = Application');
+                this.parseApplicationExtension();
+            } else if(label == LABEL_COMMENT) {
+                console.log('Extension Type = Comment');
+            } else if(label == LABEL_GRAPHIC_CONTROL) {
+                console.log('Extension Type = Graphic control');
+            } else if(label == LABEL_PLAIN_TEXT) {
+                console.log('Extension Type = Plain text');
+            }
+
+            this.parseBlock();
+        },
+
+        parseApplicationExtension: function() {
+            var size = this.readByte();
+            console.log(size);
+
+            console.log('Application Identifier = ', this.readString(8));
+        },
+
+        parseImageBlock: function() {
+            console.log('Image Left Position = ', this.readUnsigned());
+            console.log('Image Top  Position = ', this.readUnsigned());
+            console.log('Image Width         = ', this.readUnsigned());
+            console.log('Image Height        = ', this.readUnsigned());
+
+            var fields = this.readBinary();
+            console.log('Local Color Table Flag = ', fields.shift());
+            console.log('Interlace Flag = ', fields.shift());
+            console.log('Sort Flag = ', fields.shift());
+            console.log('Reserved = ', fields.splice(0, 2));
+            console.log('Size of Local Color Table = ', fields);
+
+            this.parseBlock();
+        },
+
+        parseDone: function() {
+            //TODO
+            console.log('Parse Done!')
         }
     };
+
+    function toHex(str) {
+        str = (str.charCodeAt(0) & 0xff).toString(16);
+        return str[1] ? str : ('0' + str[0]);
+    }
+
+    /**
+     * Control Label 0xf9
+     * Comment Label 0xfe
+     * Plain Text label 0x01
+     * Application Extension Label 0xff
+     */
 </script>
 </body>
 </html>

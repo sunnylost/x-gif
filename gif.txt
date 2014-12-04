@@ -1,5 +1,9 @@
 GIF Spec: http://www.w3.org/Graphics/GIF/spec-gif89a.txt
 
+http://www.onicos.com/staff/iz/formats/gif.html
+
+
+
 The Grammar.
 
 <GIF Data Stream> ::=     Header <Logical Screen> <Data>* Trailer
@@ -18,6 +22,8 @@ The Grammar.
 
 <Special-Purpose Block> ::=    Application Extension  |
                                Comment Extension
+
+
 
 Data Stream parts:
     Header
@@ -55,5 +61,31 @@ Logical Screen Descriptor
          +---------------+
       6  |               |       Pixel Aspect Ratio            Byte
          +---------------+
+
+
+      <Packed Fields>  =      Global Color Table Flag       1 Bit
+                              Color Resolution              3 Bits
+                              Sort Flag                     1 Bit
+                              Size of Global Color Table    3 Bits
+
+          Global Color Table Flag - Flag indicating the presence of a
+                      Global Color Table; if the flag is set, the Global Color Table will
+                      immediately follow the Logical Screen Descriptor. This flag also
+                      selects the interpretation of the Background Color Index; if the
+                      flag is set, the value of the Background Color Index field should
+                      be used as the table index of the background color. (This field is
+                      the most significant bit of the byte.)
+
+                      Values :    0 -   No Global Color Table follows, the Background
+                                        Color Index field is meaningless.
+                                  1 -   A Global Color Table will immediately follow, the
+                                        Background Color Index field is meaningful.
+
+
+Image Descriptor
+    Image Separator
+        0x2c -> ,
+
+
 Trailer
-    0x3B
+    0x3B -> ;
