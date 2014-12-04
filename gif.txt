@@ -89,3 +89,18 @@ Image Descriptor
 
 Trailer
     0x3B -> ;
+
+
+Doc:
+    http://www.fileformat.info/format/gif/egff.htm
+
+Gifs:
+    http://www.dorkly.com/post/61422/incredibly-satisfying-pokemon-gifs
+
+x-gif:
+    https://github.com/geelen/x-gif/
+
+Mozilla:
+    http://mxr.mozilla.org/mozilla-central/source/image/decoders/nsGIFDecoder2.cpp
+Blink:
+    https://chromium.googlesource.com/chromium/blink/+/ff88c3a/Source/core/platform/image-decoders/gif/GIFImageReader.cpp
