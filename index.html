@@ -3,14 +3,57 @@
 <head lang="en">
     <meta charset="UTF-8">
     <title>Test x-gif</title>
+    <style>
+        #stage {
+            position: relative;
+            overflow: hidden;
+        }
+
+        img {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform: translateZ(0);
+            opacity: 0;
+        }
+
+        #stage img:first-child {
+            opacity: 1;
+        }
+
+        .frame-0 [index="0"] {
+            opacity: 1;
+        }
+
+        .frame-1 [index="1"] {
+            opacity: 1;
+        }
+
+        .frame-2 [index="2"] {
+            opacity: 1;
+        }
+
+        .frame-3 [index="3"] {
+            opacity: 1;
+        }
+
+        .frame-4 [index="4"] {
+            opacity: 1;
+        }
+
+        .frame-5 [index="5"] {
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
-    <img id="gif" src="assets/2.gif">
-    <canvas id="test"></canvas>
+    <img id="gif" src="assets/1.gif" style="display: none;">
+    <div id="stage">
+    </div>
 
-    <script src="lib/gif.js"></script>
+    <script src="lib/gift.js"></script>
     <script>
-        var decoder;
+        var decoder, frames = [];
 
         var xhr = new XMLHttpRequest;
         xhr.open('GET', gif.src);
@@ -19,8 +62,41 @@
 
         xhr.onreadystatechange = function() {
             if(this.readyState == 4 && (this.status >= 200 && this.status < 400 || this.status == 304)) {
-                decoder = new GIFDecoder(new Uint8Array(this.response));
+                decoder = new Gift(new Uint8Array(this.response));
                 decoder.parse();
+
+                /**
+                 * https://github.com/geelen/x-gif/blob/gh-pages/src/exploder.js
+                 */
+                var head = decoder.gifHeader,
+                    foot = decoder.gifFooter;
+
+                decoder.frames.forEach(function(v) {
+                   var blob = new Blob([head, v.data, foot], {type: 'image/gif'});
+                    frames.push({
+                        blob: blob,
+                        url: URL.createObjectURL(blob)
+                    })
+                });
+
+                var maxFrameIndex = frames.length - 1;
+
+                frames.forEach(function(f, i) {
+                    var img = document.createElement('img');
+                    img.src = f.url;
+                    img.setAttribute('index', i);
+                    stage.appendChild(img);
+                });
+
+                stage.style.width = decoder.width + 'px';
+                stage.style.height = decoder.height + 'px';
+
+                var index = 0;
+
+                /*setInterval(function() {
+                    index >= maxFrameIndex && (index = 0);
+                    stage.className = 'frame-' + index++;
+                }, 60)*/
             }
         };
     </script>
